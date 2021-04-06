@@ -17,7 +17,6 @@ internal data class Result(
 ) {}
 
 internal class ORTAnalyzer(
-        // TODO, add ORT to handel image analysis
         private val ortSession: OrtSession?,
         private val callBack: (Result) -> Unit
 ) : ImageAnalysis.Analyzer {
@@ -79,7 +78,6 @@ internal class ORTAnalyzer(
         if (bitmap != null) {
             var result = Result()
 
-            // TODO, add ORT inferencing code here
             val imgData = preProcess(bitmap)
             val inputName = ortSession?.inputNames?.iterator()?.next()
             val shape = longArrayOf(1, 3, 224, 224)
@@ -108,7 +106,6 @@ internal class ORTAnalyzer(
 
     // We can switch analyzer in the app, need to make sure the native resources are freed
     protected fun finalize() {
-        // TODO release native resources here
         ortSession?.close()
     }
 }

@@ -141,7 +141,6 @@ class MainActivity : AppCompatActivity() {
 
     // Read ort model into a ByteArray
     private fun readModel(): ByteArray {
-        // TODO, add implementation
         val modelID =
             if (enableQuantizedModel) R.raw.mobilenet_v2_uint8 else R.raw.mobilenet_v2_float
         return resources.openRawResource(modelID).readBytes()
