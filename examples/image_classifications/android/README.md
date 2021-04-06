@@ -6,7 +6,7 @@ This is an example application for [ONNX Runtime](https://github.com/microsoft/o
 This example is loosely based on [Google CodeLabs - Getting Started with CameraX](https://codelabs.developers.google.com/codelabs/camerax-getting-started)
 
 ### Model
-We use classic MobileNetV1(float) model in this sample app.
+We use classic MobileNetV2(float) model and MobileNetV2 (uint8) in this sample app.
 
 ## Requirements
 - Android Studio 4.1+ (installed on Mac/Windows/Linux)
@@ -16,11 +16,11 @@ We use classic MobileNetV1(float) model in this sample app.
 
 ## Build And Run
 ### Prerequisites
--  MobileNetV1 onnx model
+-  MobileNetV2 ort format model
 -  labels text file (used for image classification)
 -  Prebuilt ONNX Runtime arm64 Android Archive(AAR) files, which can be directly imported in Android Studio
 
-The above three files are provided and can be downloaded [here](https://1drv.ms/u/s!Auaxv_56eyubgQbphWRzoO_ykl2e?e=VVJMGt).
+The above three files are provided and can be downloaded [here](https://1drv.ms/u/s!Auaxv_56eyubgQX-S_kTP0AP66Km?e=e8YMX1).
 
 [Optional] You can also build your own ONNX Runtime arm64 AAR files for Android. (See [build instructions here](https://www.onnxruntime.ai/docs/how-to/build.html#android) and [Build Android Archive(AAR)](https://www.onnxruntime.ai/docs/how-to/build.html#build-android-archive-aar)). 
 

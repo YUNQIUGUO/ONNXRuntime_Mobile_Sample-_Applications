@@ -1,9 +1,6 @@
 package ai.onnxruntime.example.imageclassifier
 
-import ai.onnxruntime.OrtEnvironment
-import ai.onnxruntime.OrtLoggingLevel
-import ai.onnxruntime.OrtSession
-import ai.onnxruntime.OrtSession.SessionOptions
+import ai.onnxruntime.*
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
@@ -22,33 +19,35 @@ class MainActivity : AppCompatActivity() {
     private val backgroundExecutor: ExecutorService by lazy { Executors.newSingleThreadExecutor() }
     private val labelData: List<String> by lazy { readLabels() }
 
+    private var ortEnv: OrtEnvironment? = null
     private var imageCapture: ImageCapture? = null
     private var imageAnalysis: ImageAnalysis? = null
-    private var enableNNAPI: Boolean = true      //enable NNAPI
-    private var ortEnv: OrtEnvironment? = null
+    private var enableQuantizedModel: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         // Request Camera permission
         if (allPermissionsGranted()) {
+            ortEnv = OrtEnvironment.getEnvironment()
             startCamera()
         } else {
             ActivityCompat.requestPermissions(
-                    this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS)
+                    this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS
+            )
         }
 
-        enable_nnapi_toggle.setOnCheckedChangeListener { _, isChecked ->
-            enableNNAPI = isChecked
+        enable_quantizedmodel_toggle.setOnCheckedChangeListener { _, isChecked ->
+            enableQuantizedModel = isChecked
             imageAnalysis?.clearAnalyzer()
-            imageAnalysis?.setAnalyzer(backgroundExecutor, ORTAnalyzer(CreateOrtSession(), ::updateUI))
+            imageAnalysis?.setAnalyzer(
+                    backgroundExecutor,
+                    ORTAnalyzer(createOrtSession(), ::updateUI)
+            )
         }
     }
 
     private fun startCamera() {
-        // Initialize ortEnv
-        ortEnv = OrtEnvironment.getEnvironment(OrtLoggingLevel.ORT_LOGGING_LEVEL_FATAL)
-
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
 
         cameraProviderFuture.addListener(Runnable {
@@ -72,14 +71,15 @@ class MainActivity : AppCompatActivity() {
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                     .build()
                     .also {
-                        it.setAnalyzer(backgroundExecutor, ORTAnalyzer(CreateOrtSession(), ::updateUI))
+                        it.setAnalyzer(backgroundExecutor, ORTAnalyzer(createOrtSession(), ::updateUI))
                     }
 
             try {
                 cameraProvider.unbindAll()
 
                 cameraProvider.bindToLifecycle(
-                        this, cameraSelector, preview, imageCapture, imageAnalysis)
+                        this, cameraSelector, preview, imageCapture, imageAnalysis
+                )
             } catch (exc: Exception) {
                 Log.e(TAG, "Use case binding failed", exc)
             }
@@ -96,14 +96,20 @@ class MainActivity : AppCompatActivity() {
         ortEnv?.close()
     }
 
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+    override fun onRequestPermissionsResult(
+            requestCode: Int,
+            permissions: Array<out String>,
+            grantResults: IntArray
+    ) {
         if (requestCode == REQUEST_CODE_PERMISSIONS) {
             if (allPermissionsGranted()) {
                 startCamera()
             } else {
-                Toast.makeText(this,
+                Toast.makeText(
+                        this,
                         "Permissions not granted by the user.",
-                        Toast.LENGTH_SHORT).show()
+                        Toast.LENGTH_SHORT
+                ).show()
                 finish()
             }
 
@@ -133,25 +139,21 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // Read ort model into a ByteArray
     private fun readModel(): ByteArray {
-        return resources.openRawResource(R.raw.mobilenet_v1_float).readBytes();
+        // TODO, add implementation
+        val modelID =
+            if (enableQuantizedModel) R.raw.mobilenet_v2_uint8 else R.raw.mobilenet_v2_float
+        return resources.openRawResource(modelID).readBytes()
     }
 
+    // Read MobileNet V2 classification labels
     private fun readLabels(): List<String> {
         return resources.openRawResource(R.raw.labels).bufferedReader().readLines()
     }
 
-    private fun CreateOrtSession(): OrtSession? {
-        val so = SessionOptions()
-        so.use {
-            // Set to use 2 intraOp threads for CPU EP
-            so.setIntraOpNumThreads(2)
-
-            if (enableNNAPI)
-                so.addNnapi()
-
-            return ortEnv?.createSession(readModel(), so)
-        }
+    private fun createOrtSession(): OrtSession? {
+        return ortEnv?.createSession(readModel())
     }
 
     companion object {

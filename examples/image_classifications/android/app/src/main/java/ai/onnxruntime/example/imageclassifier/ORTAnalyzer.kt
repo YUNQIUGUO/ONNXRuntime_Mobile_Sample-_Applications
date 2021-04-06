@@ -1,8 +1,6 @@
 package ai.onnxruntime.example.imageclassifier
 
-import ai.onnxruntime.OnnxTensor
-import ai.onnxruntime.OrtEnvironment
-import ai.onnxruntime.OrtSession
+import ai.onnxruntime.*
 import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.os.SystemClock
@@ -19,12 +17,14 @@ internal data class Result(
 ) {}
 
 internal class ORTAnalyzer(
+        // TODO, add ORT to handel image analysis
         private val ortSession: OrtSession?,
-        private val uiUpdateCallBack: (Result) -> Unit
+        private val callBack: (Result) -> Unit
 ) : ImageAnalysis.Analyzer {
 
     // Get index of top 3 values
-    private fun argMax(labelVals: FloatArray): List<Int> {
+    // This is for demo purpose only, there are more efficient algorithms for topK problems
+    private fun getTop3(labelVals: FloatArray): List<Int> {
         var indices = mutableListOf<Int>()
         for (k in 0..2) {
             var max: Float = 0.0f
@@ -43,8 +43,9 @@ internal class ORTAnalyzer(
         return indices.toList()
     }
 
+    // Calculate the SoftMax for the input array
     private fun softMax(modelResult: FloatArray): FloatArray {
-        var labelVals = modelResult.copyOf()
+        val labelVals = modelResult.copyOf()
         val max = labelVals.max()
         var sum = 0.0f
 
@@ -76,34 +77,30 @@ internal class ORTAnalyzer(
         val bitmap = rawBitmap?.rotate(image.imageInfo.rotationDegrees.toFloat())
 
         if (bitmap != null) {
-            val imgData = preprocess(bitmap)
-            val inputName = ortSession?.inputNames?.iterator()?.next()
             var result = Result()
-            val shape = longArrayOf(1, 224, 224, 3)
-            val ortEnv = OrtEnvironment.getEnvironment()
-            ortEnv.use {
-                // Create input tensor
-                val input_tensor = OnnxTensor.createTensor(ortEnv, imgData, shape)
+
+            // TODO, add ORT inferencing code here
+            val imgData = preProcess(bitmap)
+            val inputName = ortSession?.inputNames?.iterator()?.next()
+            val shape = longArrayOf(1, 3, 224, 224)
+            val env = OrtEnvironment.getEnvironment()
+            env.use {
+                val tensor = OnnxTensor.createTensor(env, imgData, shape)
                 val startTime = SystemClock.uptimeMillis()
-                input_tensor.use {
-                    // Run the inference and get the output tensor
-                    val output = ortSession?.run(Collections.singletonMap(inputName, input_tensor))
+                tensor.use {
+                    val output = ortSession?.run(Collections.singletonMap(inputName, tensor))
                     output.use {
-                        // Populate the result
                         result.processTimeMs = SystemClock.uptimeMillis() - startTime
-                        @Suppress("UNCHECKED_CAST")
-                        val labelVals = ((output?.get(0)?.value) as Array<FloatArray>)[0]
-                        result.detectedIndices = argMax(labelVals)
+                        val rawOutput = ((output?.get(0)?.value) as Array<FloatArray>)[0]
+                        val probabilities = softMax(rawOutput)
+                        result.detectedIndices = getTop3(probabilities)
                         for (idx in result.detectedIndices) {
-                            result.detectedScore.add(labelVals[idx])
+                            result.detectedScore.add(probabilities[idx])
                         }
-                        output.close()
                     }
                 }
             }
-
-            // Update the UI
-            uiUpdateCallBack(result)
+            callBack(result)
         }
 
         image.close()
@@ -111,6 +108,7 @@ internal class ORTAnalyzer(
 
     // We can switch analyzer in the app, need to make sure the native resources are freed
     protected fun finalize() {
+        // TODO release native resources here
         ortSession?.close()
     }
 }
